@@ -115,23 +115,64 @@ for (let i = 0; i < filterBtn.length; i++) {
 
 
 
+// EmailJS initialization (guarded so script doesn't break if CDN is unavailable)
+if (typeof emailjs !== "undefined" && typeof emailjs.init === "function") {
+  try {
+    emailjs.init("YOUR_PUBLIC_KEY_HERE");
+  } catch (e) {
+    console.warn("EmailJS init failed:", e);
+  }
+} else {
+  console.warn("EmailJS library not available — skipping initialization.");
+}
+
 // contact form variables
 const form = document.querySelector("[data-form]");
 const formInputs = document.querySelectorAll("[data-form-input]");
 const formBtn = document.querySelector("[data-form-btn]");
 
-// add event to all form input field
-for (let i = 0; i < formInputs.length; i++) {
-  formInputs[i].addEventListener("input", function () {
+if (form && formInputs && formBtn) {
+  // add event to all form input field
+  for (let i = 0; i < formInputs.length; i++) {
+    formInputs[i].addEventListener("input", function () {
 
-    // check form validation
-    if (form.checkValidity()) {
-      formBtn.removeAttribute("disabled");
+      // check form validation
+      if (form.checkValidity()) {
+        formBtn.removeAttribute("disabled");
+      } else {
+        formBtn.setAttribute("disabled", "");
+      }
+
+    });
+  }
+
+  // form submission handler
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    formBtn.setAttribute("disabled", "");
+
+    if (typeof emailjs !== "undefined" && typeof emailjs.sendForm === "function") {
+      emailjs.sendForm("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", this)
+        .then(() => {
+          alert("Message sent successfully!");
+          form.reset();
+          formBtn.setAttribute("disabled", "");
+        })
+        .catch((error) => {
+          alert("Failed to send message: " + error);
+          formBtn.removeAttribute("disabled");
+        });
     } else {
-      formBtn.setAttribute("disabled", "");
+      // graceful fallback when EmailJS isn't available (e.g., offline)
+      console.warn("emailjs.sendForm not available — skipping send.");
+      alert("Unable to send message: Email service unavailable.");
+      form.reset();
+      formBtn.removeAttribute("disabled");
     }
-
   });
+
+} else {
+  console.warn("Contact form elements not found — skipping form setup.");
 }
 
 
@@ -140,18 +181,23 @@ for (let i = 0; i < formInputs.length; i++) {
 const navigationLinks = document.querySelectorAll("[data-nav-link]");
 const pages = document.querySelectorAll("[data-page]");
 
-// add event to all nav link
+// Nav handler: use trimmed text and single-pass activation
 for (let i = 0; i < navigationLinks.length; i++) {
   navigationLinks[i].addEventListener("click", function () {
 
-    for (let i = 0; i < pages.length; i++) {
-      if (this.innerHTML.toLowerCase() === pages[i].dataset.page) {
-        pages[i].classList.add("active");
-        navigationLinks[i].classList.add("active");
+    const clicked = this.textContent.trim().toLowerCase();
+
+    // remove active from all first
+    pages.forEach(p => p.classList.remove("active"));
+    navigationLinks.forEach(n => n.classList.remove("active"));
+
+    // find matching page and activate
+    for (let j = 0; j < pages.length; j++) {
+      if (pages[j].dataset.page === clicked) {
+        pages[j].classList.add("active");
+        navigationLinks[j].classList.add("active");
         window.scrollTo(0, 0);
-      } else {
-        pages[i].classList.remove("active");
-        navigationLinks[i].classList.remove("active");
+        break;
       }
     }
 
